@@ -4,6 +4,14 @@ import LeftPanel from "../components/LeftPanel";
 import CenterPanel from "../components/CenterPanel";
 import RightPanel from "../components/RightPanel";
 
+import {
+  getDocuments,
+  classifyDocument,
+  nextDocument,
+  skipDocument,
+  getPdfBase64,
+} from "../api/api.jsx";
+
 const DocumentOrganizer = () => {
   const [inputFolder, setInputFolder] = useState("");
   const [outputFolder, setOutputFolder] = useState("");
@@ -34,19 +42,21 @@ const DocumentOrganizer = () => {
       }
 
       try {
-        const base64 = await window.electronAPI.getPdfBase64(
-          selectedPdf.path
-        );
+        const filePath = typeof selectedPdf === "string" ? selectedPdf : (selectedPdf.path || selectedPdf.filePath || "");
+        
+        if (!filePath) return;
+
+        const response = await getPdfBase64(filePath);
+
+        const base64 = response.data.base64;
 
         if (base64) {
-          setPdfDataUrl(
-            `data:application/pdf;base64,${base64}`
-          );
+          setPdfDataUrl(`data:application/pdf;base64,${base64}`);
         } else {
           setPdfDataUrl(null);
         }
       } catch (err) {
-        console.log(err);
+        console.error("PDF Load Error:", err);
         setPdfDataUrl(null);
       }
     };
@@ -61,44 +71,56 @@ const DocumentOrganizer = () => {
       return;
     }
 
-    const files =
-      await window.electronAPI.readPdfFiles(
-        inputFolder
-      );
-
-    if (!files || files.length === 0) {
-      alert("No PDF files found.");
-      return;
-    }
-
-    setPdfFiles(files);
-    setCurrentIndex(0);
-    setIsProcessingStarted(true);
-  };
-
-  // Classification
-  const handleClassify = async (category) => {
-    if (!selectedPdf) return;
-
     try {
-      await window.electronAPI.classifyPdf({
-        sourceFile: selectedPdf.path,
-        outputFolder,
-        category,
-      });
+      const response = await getDocuments(inputFolder);
 
-      handleNext();
+      const files = response.data.documents;
+
+      if (!files || files.length === 0) {
+        alert("No PDF files found.");
+        return;
+      }
+
+      setPdfFiles(files);
+      setCurrentIndex(0);
+      setIsProcessingStarted(true);
     } catch (err) {
-      console.log(err);
+      console.error("Start Processing Error:", err);
+      alert("Failed to load documents.");
     }
   };
 
+
+// DocumentOrganizer.jsx
+const handleClassify = async (category) => {
+  if (!selectedPdf || !outputFolder) {
+    alert("Please select output folder and document.");
+    return;
+  }
+
+  try {
+    const filePath = typeof selectedPdf === "string" ? selectedPdf : selectedPdf.path;
+
+    // Direct pass karein, formatting api.jsx khud kar lega
+    await classifyDocument(filePath, outputFolder, category);
+
+    await handleNext();
+  } catch (err) {
+    console.error("Classification error:", err);
+  }
+};
   // Next
-  const handleNext = () => {
-    if (currentIndex < pdfFiles.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      alert("All PDFs processed.");
+  const handleNext = async () => {
+    try {
+      const response = await nextDocument(pdfFiles, currentIndex);
+
+      if (response.data.document) {
+        setCurrentIndex(response.data.currentIndex);
+      } else {
+        alert("All PDFs processed.");
+      }
+    } catch (err) {
+      console.error("Next Error:", err);
     }
   };
 
@@ -110,8 +132,18 @@ const DocumentOrganizer = () => {
   };
 
   // Skip
-  const handleSkip = () => {
-    handleNext();
+  const handleSkip = async () => {
+    try {
+      const response = await skipDocument(pdfFiles, currentIndex);
+
+      if (response.data.document) {
+        setCurrentIndex(response.data.currentIndex);
+      } else {
+        alert("All PDFs processed.");
+      }
+    } catch (err) {
+      console.error("Skip Error:", err);
+    }
   };
 
   // Reset
@@ -130,7 +162,6 @@ const DocumentOrganizer = () => {
 
   return (
     <div className="flex h-screen gap-3 bg-slate-100 p-3">
-
       <LeftPanel
         inputFolder={inputFolder}
         outputFolder={outputFolder}
@@ -148,10 +179,7 @@ const DocumentOrganizer = () => {
 
       <RightPanel
         pageInfo={{
-          current:
-            pdfFiles.length === 0
-              ? 0
-              : currentIndex + 1,
+          current: pdfFiles.length === 0 ? 0 : currentIndex + 1,
           total: pdfFiles.length,
         }}
         folderName={inputFolder}
@@ -161,7 +189,6 @@ const DocumentOrganizer = () => {
         onPrevious={handlePrevious}
         onSkip={handleSkip}
       />
-
     </div>
   );
 };
