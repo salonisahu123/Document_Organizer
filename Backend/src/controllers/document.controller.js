@@ -1,7 +1,7 @@
 const fs = require("fs").promises;
 const path = require("path");
 const { PDFDocument, degrees } = require("pdf-lib");
-
+const axios = require("axios");
 const {
   getDocumentsFromFolder,
   undoDocument,
@@ -182,7 +182,27 @@ const getPdfBase64 = async (req, res, next) => {
   }
 };
 
+const getRemoteConfig = async (req, res, next) => {
+  try {
 
+    const response = await axios.post(
+      "https://nextinlabs.com/AppRemoteConfiguration/remote-configure.php",
+      {
+        app_id: "DRISTISIGNALS_C_1",
+        app_package_name: "com.nxtinlbs.drishtisignals",
+      }
+    );
+
+    res.status(200).json(response.data);
+
+  } catch (error) {
+
+    console.error(error.message);
+
+    next(error);
+
+  }
+};
 
 module.exports = {
   getDocuments,
@@ -191,4 +211,5 @@ module.exports = {
   skipDocument,
   undo,
   getPdfBase64,
+  getRemoteConfig
 };

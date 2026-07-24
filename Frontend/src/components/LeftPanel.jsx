@@ -41,11 +41,11 @@ const LeftPanel = ({
       <div>
 
         <h2 className="text-lg font-bold text-[#801446]">
-          Document Organizer
+          Get Started - Load Folder 
         </h2>
 
-        <p className="text-xs text-slate-500 mt-1 mb-6">
-          Select input and output folders to start processing.
+        <p className="text-xs text-slate-500 mt-1 mb-6 truncate">
+          use below settings to load your input and output folders. Once both are selected, click "Start Processing" to begin organizing your documents.
         </p>
 
         {/* Input Folder */}
@@ -61,7 +61,7 @@ const LeftPanel = ({
               type="text"
               readOnly
               value={inputFolder}
-              placeholder="Select Input Folder"
+              placeholder="Path Folder"
               className="flex-1 border border-pink-200 rounded-lg px-3 py-2 text-xs bg-white/80 text-slate-700 placeholder-slate-400 outline-none"
             />
 
@@ -90,7 +90,7 @@ const LeftPanel = ({
               type="text"
               readOnly
               value={outputFolder}
-              placeholder="Select Output Folder"
+              placeholder="Path Folder"
               className="flex-1 border border-pink-200 rounded-lg px-3 py-2 text-xs bg-white/80 text-slate-700 placeholder-slate-400 outline-none"
             />
 

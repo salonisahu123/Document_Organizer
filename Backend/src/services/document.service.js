@@ -9,9 +9,6 @@ const AppError = require("../utils/AppError");
 
 const ALLOWED_EXTENSIONS = [
   ".pdf",
-  ".jpg",
-  ".jpeg",
-  ".png",
 ];
 
 const getDocumentsFromFolder = async (folderPath) => {

@@ -4,15 +4,21 @@ import LeftPanel from "../components/LeftPanel";
 import CenterPanel from "../components/CenterPanel";
 import RightPanel from "../components/RightPanel";
 
+
+
 import {
   getDocuments,
   classifyDocument,
   nextDocument,
   skipDocument,
   getPdfBase64,
+  
 } from "../api/api.jsx";
 
-const DocumentOrganizer = () => {
+const DocumentOrganizer = ({remoteConfig }) => {
+  
+  // console.log("Remote Config:", remoteConfig);
+
   const [inputFolder, setInputFolder] = useState("");
   const [outputFolder, setOutputFolder] = useState("");
 
@@ -26,17 +32,25 @@ const DocumentOrganizer = () => {
   const [rotation,setRotation] = useState(0);
 
   // Current PDF update
-  useEffect(() => {
-    if (pdfFiles.length > 0) {
-      setSelectedPdf(pdfFiles[currentIndex]);
-    } else {
-      setSelectedPdf(null);
-    }
-  }, [pdfFiles, currentIndex]);
+useEffect(() => {
 
+  if (pdfFiles.length > 0) {
+
+    setSelectedPdf(pdfFiles[currentIndex]);
+
+    // New PDF = no rotation
+    setRotation(0);
+
+  } else {
+
+    setSelectedPdf(null);
+
+  }
+
+}, [pdfFiles, currentIndex]);
   // PDF Preview
   useEffect(() => {
-     console.log("Selected PDF:", selectedPdf);
+    //  console.log("Selected PDF:", selectedPdf);
     const loadPdf = async () => {
       if (!selectedPdf) {
         setPdfDataUrl(null);
@@ -119,20 +133,25 @@ const handleClassify = async (category) => {
 
 };
   // Next
-  const handleNext = async () => {
-    try {
-      const response = await nextDocument(pdfFiles, currentIndex);
+ const handleNext = async () => {
+  try {
+    const response = await nextDocument(pdfFiles, currentIndex);
 
-      if (response.data.document) {
-        setCurrentIndex(response.data.currentIndex);
-      } else {
-        alert("All PDFs processed.");
-      }
-    } catch (err) {
-      console.error("Next Error:", err);
+    if (response.data.document) {
+
+      setCurrentIndex(response.data.currentIndex);
+
+      // 🔥 New PDF ke liye rotation reset
+      setRotation(0);
+
+    } else {
+      alert("All PDFs processed.");
     }
-  };
 
+  } catch (err) {
+    console.error("Next Error:", err);
+  }
+};
   // Previous
   const handlePrevious = () => {
     if (currentIndex > 0) {

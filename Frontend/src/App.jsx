@@ -1,8 +1,37 @@
-import React from "react";
-import DocumentOrganizer from "./Components/DocumentOrganizer";
+import { useState } from "react";
+
+import LoadingScreen from "./components/LoadingScreen";
+import DocumentOrganizer from "./components/DocumentOrganizer";
 
 function App() {
-  return <DocumentOrganizer />;
+
+  const [loading, setLoading] = useState(true);
+
+  const [remoteConfig, setRemoteConfig] = useState(null);
+
+  const handleComplete = (config) => {
+
+    // console.log("Remote Config:", config);
+
+    setRemoteConfig(config);
+
+    setLoading(false);
+  };
+
+  return (
+    <>
+      {
+        loading ?
+
+        <LoadingScreen onComplete={handleComplete} />
+
+        :
+
+        <DocumentOrganizer remoteConfig={remoteConfig} />
+
+      }
+    </>
+  );
 }
 
 export default App;

@@ -33,7 +33,8 @@ export const classifyDocument = (data) => {
 export const undo = (originalPath, classifiedPath) => {
   return api.post("/undo", { originalPath, classifiedPath });
 };
-
-
+export const fetchRemoteConfig = () => {
+  return api.post("/remote-config");
+};
 
 export default api;
