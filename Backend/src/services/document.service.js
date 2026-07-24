@@ -1,5 +1,9 @@
+
+
 const fs = require("fs").promises;
 const path = require("path");
+
+const rotatePdf = require("./pdfRotate.service");
 
 const AppError = require("../utils/AppError");
 
@@ -47,7 +51,8 @@ const getDocumentsFromFolder = async (folderPath) => {
 const classifyDocument = async (
   sourceFile,
   outputFolder,
-  category
+  category,
+  rotation = 0
 ) => {
   try {
     await fs.access(sourceFile);
@@ -98,10 +103,26 @@ const classifyDocument = async (
     }
   }
 
+ if (
+  rotation &&
+  rotation !== 0 &&
+  path.extname(sourceFile).toLowerCase() === ".pdf"
+) {
+
+  await rotatePdf(
+    sourceFile,
+    destination,
+    rotation
+  );
+
+} else {
+
   await fs.copyFile(
     sourceFile,
     destination
   );
+
+}
 
   return destination;
 };
@@ -158,9 +179,12 @@ const getNextDocument = (
 
 
 
+
+
 module.exports = {
   getDocumentsFromFolder,
   classifyDocument,
   undoDocument,
   getNextDocument,
+
 };

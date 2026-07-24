@@ -1,111 +1,109 @@
-import React from "react";
+import React, { useState } from "react";
+import { Document, Page } from "react-pdf";
+import "react-pdf/dist/Page/TextLayer.css";
+import "react-pdf/dist/Page/AnnotationLayer.css";
 
 const CenterPanel = ({
-  isProcessingStarted,
+   isProcessingStarted,
   selectedPdf,
   pdfUrl,
+  rotation,
+  setRotation
 }) => {
-  // Initial Screen
+
+
+  const [numPages, setNumPages] = useState(null);
+ 
+
+
   if (!isProcessingStarted) {
     return (
-      <section className="flex-1 bg-[#fdf2f8] rounded-2xl border border-pink-200/80 shadow-md flex items-center justify-center p-6">
+      <section className="flex-1 bg-[#fdf2f8] rounded-2xl border border-pink-200 shadow-md flex items-center justify-center">
         <div className="text-center">
-
-          <div className="text-7xl mb-4">📄</div>
-
+          <div className="text-7xl">📄</div>
           <h2 className="text-2xl font-bold text-[#801446]">
             Document Organizer
           </h2>
-
-          <p className="text-slate-600 mt-2 font-medium">
-            Select Input and Output folders
-          </p>
-
-          <p className="text-slate-400 text-sm mt-1">
-            Then click
-            <span className="font-semibold text-[#801446]">
-              {" "}
-              Start Processing
-            </span>
-          </p>
-
         </div>
       </section>
     );
   }
 
-  // No PDF Found
+
   if (!selectedPdf) {
     return (
-      <section className="flex-1 bg-[#fdf2f8] rounded-2xl border border-pink-200/80 shadow-md flex items-center justify-center p-6">
-        <div className="text-center">
-
-          <div className="text-6xl mb-4">📂</div>
-
-          <h2 className="text-xl font-bold text-[#801446]">
-            No PDF Found
-          </h2>
-
-          <p className="text-slate-500 mt-2">
-            Selected folder does not contain PDF files.
-          </p>
-
-        </div>
-      </section>
+      <div className="flex-1 flex items-center justify-center">
+        No PDF Found
+      </div>
     );
   }
 
-  return (
-    <section className="flex-1 bg-[#fdf2f8] rounded-2xl border border-pink-200/80 shadow-md flex flex-col overflow-hidden">
 
-      {/* Header */}
-      <div className="border-b border-pink-200/80 p-4 bg-white/80 backdrop-blur-sm">
+  return (
+    <section className="flex-1 bg-[#fdf2f8] rounded-2xl border border-pink-200 shadow-md flex flex-col overflow-hidden">
+
+      <div className="p-4 bg-white border-b">
 
         <h2 className="font-bold text-[#801446]">
           PDF Preview
         </h2>
 
-        <p className="text-sm font-medium text-slate-700 truncate mt-1">
+        <p>
           {selectedPdf.name}
         </p>
 
-        <p className="text-xs text-slate-400 truncate">
-          {selectedPdf.path}
-        </p>
+
+        <button
+            onClick={() => setRotation((prev) => (prev + 90) % 360)  }
+          className="mt-2 px-4 py-2 bg-[#801446] text-white rounded-lg"
+        >
+          Rotate PDF ↻
+        </button>
 
       </div>
 
-      {/* Preview Container */}
-      <div className="flex-1 bg-pink-50/50 relative">
 
-        {pdfUrl ? (
-          <iframe
-            title="PDF Preview"
-            src={pdfUrl}
-            className="w-full h-full border-0"
-          />
-        ) : (
-          <div className="h-full flex items-center justify-center">
+      <div className="flex-1 overflow-auto flex justify-center bg-gray-100">
 
-            <div className="text-center">
 
-              <div className="text-5xl mb-4 animate-pulse">
-                ⏳
-              </div>
+        {
+          pdfUrl &&
 
-              <h2 className="text-lg font-semibold text-[#801446]">
-                Loading PDF...
-              </h2>
+          <Document
+            file={pdfUrl}
+            onLoadSuccess={(data)=>{
+              setNumPages(data.numPages);
+            }}
+          >
 
-            </div>
+            {
+              Array.from(
+                new Array(numPages),
+                (el,index)=>(
+                  
+                  <Page
+                    key={index}
+                    pageNumber={1}
+                    rotate={rotation}
+                    width={700}
+                  />
 
-          </div>
-        )}
+                )
+              )
+            }
+
+
+          </Document>
+
+        }
+
 
       </div>
+
 
     </section>
   );
 };
+
 
 export default CenterPanel;

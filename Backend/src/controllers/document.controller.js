@@ -39,7 +39,7 @@ const classify = async (req, res, next) => {
       sourceFile,
       outputFolder,
       category,
-      rotationAngle = 0,
+      rotation
     } = req.body;
 
     if (!sourceFile || !outputFolder || !category) {
@@ -63,7 +63,7 @@ const classify = async (req, res, next) => {
     const pdfDoc = await PDFDocument.load(pdfBytes);
 
     // Apply rotation if set (90, 180, 270)
-    const angleNum = Number(rotationAngle);
+    const angleNum = Number(rotation || 0);
     if (angleNum !== 0) {
       const pages = pdfDoc.getPages();
       pages.forEach((page) => {
@@ -82,8 +82,9 @@ const classify = async (req, res, next) => {
       destination: destinationPath,
     });
   } catch (error) {
-    next(error);
-  }
+  console.log("CLASSIFY ERROR:", error);
+  next(error);
+}
 };
 
 // 3. Next Document
@@ -180,6 +181,8 @@ const getPdfBase64 = async (req, res, next) => {
     next(error);
   }
 };
+
+
 
 module.exports = {
   getDocuments,

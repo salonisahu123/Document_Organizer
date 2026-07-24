@@ -34,15 +34,8 @@ app.whenReady().then(() => {
 
 });
 
-
-
-
-
-// ==============================
-
 // Select Folder
 
-// ==============================
 
 ipcMain.handle("select-directory", async () => {
 

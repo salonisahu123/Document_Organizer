@@ -23,6 +23,7 @@ const DocumentOrganizer = () => {
   const [pdfDataUrl, setPdfDataUrl] = useState(null);
 
   const [isProcessingStarted, setIsProcessingStarted] = useState(false);
+  const [rotation,setRotation] = useState(0);
 
   // Current PDF update
   useEffect(() => {
@@ -35,6 +36,7 @@ const DocumentOrganizer = () => {
 
   // PDF Preview
   useEffect(() => {
+     console.log("Selected PDF:", selectedPdf);
     const loadPdf = async () => {
       if (!selectedPdf) {
         setPdfDataUrl(null);
@@ -93,21 +95,28 @@ const DocumentOrganizer = () => {
 
 // DocumentOrganizer.jsx
 const handleClassify = async (category) => {
-  if (!selectedPdf || !outputFolder) {
-    alert("Please select output folder and document.");
-    return;
-  }
+
+  if (!selectedPdf) return;
 
   try {
-    const filePath = typeof selectedPdf === "string" ? selectedPdf : selectedPdf.path;
 
-    // Direct pass karein, formatting api.jsx khud kar lega
-    await classifyDocument(filePath, outputFolder, category);
+    const data = {
+      sourceFile: selectedPdf.path,
+      outputFolder,
+      category,
+      rotation,
+    };
 
-    await handleNext();
+    console.log("Sending classify data:", data);
+
+    await classifyDocument(data);
+
+    handleNext();
+
   } catch (err) {
-    console.error("Classification error:", err);
+    console.log("Classify Error:", err);
   }
+
 };
   // Next
   const handleNext = async () => {
@@ -171,11 +180,15 @@ const handleClassify = async (category) => {
         onResetAll={handleReset}
       />
 
+     
+     
       <CenterPanel
-        isProcessingStarted={isProcessingStarted}
-        selectedPdf={selectedPdf}
-        pdfUrl={pdfDataUrl}
-      />
+  isProcessingStarted={isProcessingStarted}
+  selectedPdf={selectedPdf}
+  pdfUrl={pdfDataUrl}
+  rotation={rotation}
+  setRotation={setRotation}
+/>
 
       <RightPanel
         pageInfo={{

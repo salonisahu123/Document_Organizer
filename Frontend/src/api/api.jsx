@@ -9,19 +9,6 @@ export const getDocuments = (inputFolder) => {
   return api.post("/list", { inputFolder });
 };
 
-// 2. Classify Document
-// src/api/api.jsx
-export const classifyDocument = (sourceFile, outputFolder, category, rotationAngle = 0) => {
-  const src = typeof sourceFile === "object" ? sourceFile.path : String(sourceFile);
-  const out = typeof outputFolder === "object" ? outputFolder.path : String(outputFolder);
-
-  return api.post("/classify", {
-    sourceFile: src,
-    outputFolder: out,
-    category: String(category),
-    rotationAngle: Number(rotationAngle) // Pass rotation angle (0, 90, 180, 270)
-  });
-};
 
 
 
@@ -39,7 +26,9 @@ export const skipDocument = (documents, currentIndex) => {
 export const getPdfBase64 = (filePath) => {
   return api.post("/pdf", { filePath });
 };
-
+export const classifyDocument = (data) => {
+  return api.post("/classify", data);
+};
 // 6. Undo
 export const undo = (originalPath, classifiedPath) => {
   return api.post("/undo", { originalPath, classifiedPath });
