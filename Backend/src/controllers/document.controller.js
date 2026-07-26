@@ -1,6 +1,8 @@
 const fs = require("fs").promises;
 const path = require("path");
 const { PDFDocument, degrees } = require("pdf-lib");
+const { fromPath } = require("pdf2pic");
+const sharp = require("sharp");
 const axios = require("axios");
 const {
   getDocumentsFromFolder,
@@ -8,7 +10,9 @@ const {
 } = require("../services/document.service");
 
 const AppError = require("../utils/AppError");
-
+// const {
+//   cropDocument
+// } = require("../controllers/document.controller");
 // 1. Get Documents
 const getDocuments = async (req, res, next) => {
   try {
@@ -204,6 +208,205 @@ const getRemoteConfig = async (req, res, next) => {
   }
 };
 
+const cropDocument = async (req,res,next)=>{
+
+try{
+
+const {
+filePath,
+cropData,
+outputFolder
+}=req.body;
+
+
+if(!filePath || !cropData || !outputFolder){
+
+throw new AppError(
+"filePath, cropData and outputFolder are required",
+400
+);
+
+}
+
+
+// output folder
+await fs.mkdir(outputFolder,{
+recursive:true
+});
+
+
+// temporary image folder
+const tempFolder = path.join(
+outputFolder,
+"temp_crop"
+);
+
+
+await fs.mkdir(tempFolder,{
+recursive:true
+});
+
+
+
+// PDF first page image
+const convert = fromPath(filePath, {
+  density: 150,
+  saveFilename: "page_preview",
+  savePath: tempFolder,
+  format: "png"
+});
+
+
+const result = await convert(1);
+
+
+const imagePath = result.path;
+
+
+
+// image metadata
+const image = sharp(imagePath);
+
+const metadata = await image.metadata();
+
+
+
+// ReactCrop percentage ko pixel me convert karna
+
+// ReactCrop already gives pixel values
+
+let left = Math.round(cropData.x);
+let top = Math.round(cropData.y);
+let width = Math.round(cropData.width);
+let height = Math.round(cropData.height);
+
+
+// Safety check
+if(left < 0) left = 0;
+if(top < 0) top = 0;
+
+
+if(left + width > metadata.width){
+  width = metadata.width - left;
+}
+
+
+if(top + height > metadata.height){
+  height = metadata.height - top;
+}
+
+
+console.log("Image Size:", metadata.width, metadata.height);
+
+console.log("Final Crop:", {
+ left,
+ top,
+ width,
+ height
+});
+
+// crop image
+
+const croppedImagePath = path.join(
+tempFolder,
+"cropped.png"
+);
+
+
+
+await sharp(imagePath)
+.extract({
+left,
+top,
+width,
+height
+})
+.png()
+.toFile(croppedImagePath);
+
+
+
+
+
+// Image ko PDF me convert
+
+const newPdf = await PDFDocument.create();
+
+
+const pngBytes = await fs.readFile(
+croppedImagePath
+);
+
+
+const pngImage = await newPdf.embedPng(
+pngBytes
+);
+
+
+const page = newPdf.addPage([
+pngImage.width,
+pngImage.height
+]);
+
+
+page.drawImage(
+pngImage,
+{
+x:0,
+y:0,
+width:pngImage.width,
+height:pngImage.height
+}
+);
+
+
+
+const pdfBytes = await newPdf.save();
+
+
+
+
+// final pdf save
+
+const fileName =
+"cropped_"+path.basename(filePath);
+
+
+const outputPath =
+path.join(outputFolder,fileName);
+
+
+
+await fs.writeFile(
+outputPath,
+pdfBytes
+);
+
+
+
+res.json({
+
+success:true,
+
+message:"PDF cropped successfully",
+
+file:outputPath
+
+});
+
+
+
+}
+catch(error){
+
+console.log("CROP ERROR:",error);
+
+next(error);
+
+}
+
+};
+
 module.exports = {
   getDocuments,
   classify,
@@ -211,5 +414,6 @@ module.exports = {
   skipDocument,
   undo,
   getPdfBase64,
-  getRemoteConfig
+  getRemoteConfig,
+  cropDocument
 };

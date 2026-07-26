@@ -9,7 +9,7 @@ const {
    undo,
     getPdfBase64,
     getRemoteConfig,   // ✅ Ye import hona chahiye
-
+cropDocument
 } = require("../controllers/document.controller");
 
 const router = express.Router();
@@ -25,5 +25,6 @@ router.post("/undo", undo);
 router.post("/pdf", getPdfBase64);
 // ✅ Ye route add karo
 router.post("/remote-config", getRemoteConfig);
+router.post("/crop", cropDocument);
 
 module.exports = router;

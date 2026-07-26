@@ -37,4 +37,12 @@ export const fetchRemoteConfig = () => {
   return api.post("/remote-config");
 };
 
+
+
+export const cropDocument = (data)=>{
+
+return api.post("/crop",data);
+
+};
+
 export default api;
