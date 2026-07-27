@@ -1,4 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 const RightPanel = ({
   pageInfo,
@@ -8,6 +12,7 @@ const RightPanel = ({
   onNext,
   onPrevious,
   onSkip,
+  croppedPreviewUrl,
 }) => {
   const categories = [
     { name: "Tender Application", color: "bg-pink-100 hover:bg-pink-200 text-pink-900 border border-pink-200" },
@@ -25,6 +30,39 @@ const RightPanel = ({
     { name: "Other", color: "bg-pink-100 hover:bg-pink-200 text-pink-900 border border-pink-200" },
     { name: "Blank", color: "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200" },
   ];
+
+
+  const [thumbnail, setThumbnail] = useState(null);
+
+useEffect(() => {
+  if (!croppedPreviewUrl) {
+    setThumbnail(null);
+    return;
+  }
+
+  const renderThumbnail = async () => {
+    try {
+      const pdfData = await fetch(croppedPreviewUrl).then((res) => res.arrayBuffer());
+      const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 0.5 });
+
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      await page.render({ canvasContext: context, viewport }).promise;
+
+      setThumbnail(canvas.toDataURL("image/png"));
+    } catch (err) {
+      console.error("Thumbnail render error:", err);
+      setThumbnail(null);
+    }
+  };
+
+  renderThumbnail();
+}, [croppedPreviewUrl]);
 
   return (
     <aside className="w-80 bg-[#fdf2f8] rounded-2xl border border-pink-200/80 shadow-md p-5 flex flex-col justify-between text-slate-800">
@@ -57,6 +95,9 @@ const RightPanel = ({
           </p>
 
         </div>
+
+      
+      
 
         {/* Navigation */}
         <div className="grid grid-cols-3 gap-2 mb-5">

@@ -39,17 +39,12 @@ const getDocuments = async (req, res, next) => {
 // 2. Classify Document (Handles Rotation too)
 const classify = async (req, res, next) => {
   try {
-    const {
-      sourceFile,
-      outputFolder,
-      category,
-      rotation
-    } = req.body;
+    const { sourceFile, outputFolder, category, rotation } = req.body;
 
     if (!sourceFile || !outputFolder || !category) {
       throw new AppError(
         "sourceFile, outputFolder and category are required",
-        400
+        400,
       );
     }
 
@@ -77,8 +72,23 @@ const classify = async (req, res, next) => {
     }
 
     // Save modified PDF to output directory
+    // Save modified PDF to output directory
     const modifiedPdfBytes = await pdfDoc.save();
     await fs.writeFile(destinationPath, modifiedPdfBytes);
+
+    // Cleanup: agar source file temp cropped file thi (outputFolder root mein), to delete kar do
+    try {
+      const sourceDir = path.dirname(sourceFile);
+      const isTempCroppedFile =
+        path.resolve(sourceDir) === path.resolve(outputFolder) &&
+        path.basename(sourceFile).startsWith("cropped_");
+
+      if (isTempCroppedFile) {
+        await fs.unlink(sourceFile);
+      }
+    } catch (cleanupErr) {
+      console.warn("Cleanup warning (non-fatal):", cleanupErr.message);
+    }
 
     res.status(200).json({
       success: true,
@@ -86,9 +96,9 @@ const classify = async (req, res, next) => {
       destination: destinationPath,
     });
   } catch (error) {
-  console.log("CLASSIFY ERROR:", error);
-  next(error);
-}
+    console.log("CLASSIFY ERROR:", error);
+    next(error);
+  }
 };
 
 // 3. Next Document
@@ -99,7 +109,7 @@ const nextDocument = (req, res, next) => {
     if (!Array.isArray(documents) || typeof currentIndex !== "number") {
       throw new AppError(
         "Valid documents array and currentIndex are required",
-        400
+        400,
       );
     }
 
@@ -124,7 +134,7 @@ const skipDocument = (req, res, next) => {
     if (!Array.isArray(documents) || typeof currentIndex !== "number") {
       throw new AppError(
         "Valid documents array and currentIndex are required",
-        400
+        400,
       );
     }
 
@@ -148,10 +158,7 @@ const undo = async (req, res, next) => {
     const { originalPath, classifiedPath } = req.body;
 
     if (!originalPath || !classifiedPath) {
-      throw new AppError(
-        "originalPath and classifiedPath are required",
-        400
-      );
+      throw new AppError("originalPath and classifiedPath are required", 400);
     }
 
     const restoredPath = await undoDocument(originalPath, classifiedPath);
@@ -188,223 +195,148 @@ const getPdfBase64 = async (req, res, next) => {
 
 const getRemoteConfig = async (req, res, next) => {
   try {
-
     const response = await axios.post(
       "https://nextinlabs.com/AppRemoteConfiguration/remote-configure.php",
       {
         app_id: "DRISTISIGNALS_C_1",
         app_package_name: "com.nxtinlbs.drishtisignals",
-      }
+      },
     );
 
     res.status(200).json(response.data);
-
   } catch (error) {
-
     console.error(error.message);
 
     next(error);
-
   }
 };
 
-const cropDocument = async (req,res,next)=>{
+const cropDocument = async (req, res, next) => {
+  try {
+    const { filePath, cropData, outputFolder } = req.body;
 
-try{
+    if (!filePath || !cropData || !outputFolder) {
+      throw new AppError(
+        "filePath, cropData and outputFolder are required",
+        400,
+      );
+    }
 
-const {
-filePath,
-cropData,
-outputFolder
-}=req.body;
+    // output folder
+    await fs.mkdir(outputFolder, {
+      recursive: true,
+    });
 
+    // temporary image folder
+    const tempFolder = path.join(outputFolder, "temp_crop");
 
-if(!filePath || !cropData || !outputFolder){
+    await fs.mkdir(tempFolder, {
+      recursive: true,
+    });
 
-throw new AppError(
-"filePath, cropData and outputFolder are required",
-400
-);
+    // PDF first page image
+    const convert = fromPath(filePath, {
+      density: 150,
+      saveFilename: "page_preview",
+      savePath: tempFolder,
+      format: "png",
+    });
 
-}
+    const result = await convert(1);
 
+    const imagePath = result.path;
 
-// output folder
-await fs.mkdir(outputFolder,{
-recursive:true
-});
+    // image metadata
+    const image = sharp(imagePath);
 
+    const metadata = await image.metadata();
 
-// temporary image folder
-const tempFolder = path.join(
-outputFolder,
-"temp_crop"
-);
+    // ReactCrop percentage ko pixel me convert karna
 
+    // ReactCrop already gives pixel values
 
-await fs.mkdir(tempFolder,{
-recursive:true
-});
+    let left = Math.round(cropData.x);
+    let top = Math.round(cropData.y);
+    let width = Math.round(cropData.width);
+    let height = Math.round(cropData.height);
 
+    // Safety check
+    if (left < 0) left = 0;
+    if (top < 0) top = 0;
 
+    if (left + width > metadata.width) {
+      width = metadata.width - left;
+    }
 
-// PDF first page image
-const convert = fromPath(filePath, {
-  density: 150,
-  saveFilename: "page_preview",
-  savePath: tempFolder,
-  format: "png"
-});
+    if (top + height > metadata.height) {
+      height = metadata.height - top;
+    }
 
+    console.log("Image Size:", metadata.width, metadata.height);
 
-const result = await convert(1);
+    console.log("Final Crop:", {
+      left,
+      top,
+      width,
+      height,
+    });
 
+    // crop image
 
-const imagePath = result.path;
+    const croppedImagePath = path.join(tempFolder, "cropped.png");
 
+    await sharp(imagePath)
+      .extract({
+        left,
+        top,
+        width,
+        height,
+      })
+      .png()
+      .toFile(croppedImagePath);
 
+    // Image ko PDF me convert
 
-// image metadata
-const image = sharp(imagePath);
+    const newPdf = await PDFDocument.create();
 
-const metadata = await image.metadata();
+    const pngBytes = await fs.readFile(croppedImagePath);
 
+    const pngImage = await newPdf.embedPng(pngBytes);
 
+    const page = newPdf.addPage([pngImage.width, pngImage.height]);
 
-// ReactCrop percentage ko pixel me convert karna
+    page.drawImage(pngImage, {
+      x: 0,
+      y: 0,
+      width: pngImage.width,
+      height: pngImage.height,
+    });
 
-// ReactCrop already gives pixel values
+    const pdfBytes = await newPdf.save();
 
-let left = Math.round(cropData.x);
-let top = Math.round(cropData.y);
-let width = Math.round(cropData.width);
-let height = Math.round(cropData.height);
+    // final pdf save
 
+    const fileName = "cropped_" + path.basename(filePath);
 
-// Safety check
-if(left < 0) left = 0;
-if(top < 0) top = 0;
+    const outputPath = path.join(outputFolder, fileName);
 
+    await fs.writeFile(outputPath, pdfBytes);
 
-if(left + width > metadata.width){
-  width = metadata.width - left;
-}
+    // Temporary folder cleanup — intermediate images ki zaroorat nahi ab
+    await fs.rm(tempFolder, { recursive: true, force: true });
 
+    res.json({
+      success: true,
 
-if(top + height > metadata.height){
-  height = metadata.height - top;
-}
+      message: "PDF cropped successfully",
 
+      file: outputPath,
+    });
+  } catch (error) {
+    console.log("CROP ERROR:", error);
 
-console.log("Image Size:", metadata.width, metadata.height);
-
-console.log("Final Crop:", {
- left,
- top,
- width,
- height
-});
-
-// crop image
-
-const croppedImagePath = path.join(
-tempFolder,
-"cropped.png"
-);
-
-
-
-await sharp(imagePath)
-.extract({
-left,
-top,
-width,
-height
-})
-.png()
-.toFile(croppedImagePath);
-
-
-
-
-
-// Image ko PDF me convert
-
-const newPdf = await PDFDocument.create();
-
-
-const pngBytes = await fs.readFile(
-croppedImagePath
-);
-
-
-const pngImage = await newPdf.embedPng(
-pngBytes
-);
-
-
-const page = newPdf.addPage([
-pngImage.width,
-pngImage.height
-]);
-
-
-page.drawImage(
-pngImage,
-{
-x:0,
-y:0,
-width:pngImage.width,
-height:pngImage.height
-}
-);
-
-
-
-const pdfBytes = await newPdf.save();
-
-
-
-
-// final pdf save
-
-const fileName =
-"cropped_"+path.basename(filePath);
-
-
-const outputPath =
-path.join(outputFolder,fileName);
-
-
-
-await fs.writeFile(
-outputPath,
-pdfBytes
-);
-
-
-
-res.json({
-
-success:true,
-
-message:"PDF cropped successfully",
-
-file:outputPath
-
-});
-
-
-
-}
-catch(error){
-
-console.log("CROP ERROR:",error);
-
-next(error);
-
-}
-
+    next(error);
+  }
 };
 
 module.exports = {
@@ -415,5 +347,5 @@ module.exports = {
   undo,
   getPdfBase64,
   getRemoteConfig,
-  cropDocument
+  cropDocument,
 };
