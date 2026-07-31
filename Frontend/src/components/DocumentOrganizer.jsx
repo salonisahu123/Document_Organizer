@@ -323,14 +323,40 @@ const DocumentOrganizer = ({ remoteConfig }) => {
 
         if (!filePath) return;
 
-        const response = await getPdfBase64(filePath);
-        const base64 = response.data.base64;
+        // const response = await getPdfBase64(filePath);
+        // const base64 = response.data.base64;
 
-        if (base64) {
-          setPdfDataUrl(`data:application/pdf;base64,${base64}`);
-        } else {
-          setPdfDataUrl(null);
-        }
+        // if (base64) {
+        //   setPdfDataUrl(`data:application/pdf;base64,${base64}`);
+        // } else {
+        //   setPdfDataUrl(null);
+        // }
+        const response = await getPdfBase64(filePath);
+
+const base64 = response.data.base64;
+
+if (base64) {
+  const extension =
+    (
+      selectedPdf.extension ||
+      filePath.substring(filePath.lastIndexOf("."))
+    ).toLowerCase();
+
+  let mimeType = "application/pdf";
+
+  if (extension === ".png") {
+    mimeType = "image/png";
+  } else if (
+    extension === ".jpg" ||
+    extension === ".jpeg"
+  ) {
+    mimeType = "image/jpeg";
+  }
+
+  setPdfDataUrl(`data:${mimeType};base64,${base64}`);
+} else {
+  setPdfDataUrl(null);
+}
       } catch (err) {
         console.error("PDF Load Error:", err);
         setPdfDataUrl(null);
@@ -352,7 +378,7 @@ const DocumentOrganizer = ({ remoteConfig }) => {
       const files = response.data.documents;
 
       if (!files || files.length === 0) {
-        alert("No PDF files found.");
+        alert("No supported documents found.");
         return;
       }
 
